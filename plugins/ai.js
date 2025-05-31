@@ -1,18 +1,16 @@
-const { Configuration, OpenAIApi } = require("openai");
-
-const config = new Configuration({ apiKey: "ISI_API_KEY_OPENAI" });
-const openai = new OpenAIApi(config);
+const axios = require('axios');
 
 module.exports = async (sock, msg, text, from) => {
-    if (!text.startsWith('.ai')) return;
-    const prompt = text.replace('.ai', '').trim();
-    if (!prompt) return sock.sendMessage(from, { text: 'Mau tanya apa, kak?' });
+  if (!text.startsWith('.ai')) return;
 
-    const response = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
-    });
+  const prompt = text.replace('.ai', '').trim();
+  if (!prompt) return sock.sendMessage(from, { text: 'Tolong tulis pesan untuk AI ya!' });
 
-    const reply = response.data.choices[0].message.content;
-    await sock.sendMessage(from, { text: reply });
+  try {
+    // Ganti URL dan API key sesuai layanan AI yang kamu pakai
+    const response = await axios.post('https://api.example-ai.com/chat', { prompt });
+    await sock.sendMessage(from, { text: response.data.reply });
+  } catch {
+    await sock.sendMessage(from, { text: 'AI sedang sibuk, coba lagi nanti ya.' });
+  }
 };

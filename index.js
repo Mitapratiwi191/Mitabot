@@ -1,40 +1,60 @@
-const { default: makeWASocket, useSingleFileAuthState } = require("@adiwajshing/baileys");
-const { state, saveState } = useSingleFileAuthState('./session.json');
+
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const P = require('pino');
 const fs = require('fs');
-const chalk = require('chalk');
+const path = require('path');
+const { ownerNumber, botNumber } = require('./config');
 
-const prefix = '.';
+async function startBot() {
+  const { state, saveCreds } = await useMultiFileAuthState('auth');
+  const { version } = await fetchLatestBaileysVersion();
+  
+  const sock = makeWASocket({
+    version,
+    auth: state,
+    printQRInTerminal: true,
+    logger: P({ level: 'silent' }),
+  });
 
-const startBot = async () => {
-    const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: true
-    });
+  sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('creds.update', saveState);
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message || msg.key.fromMe) return;
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0];
-        if (!msg.message || msg.key.fromMe) return;
+    const from = msg.key.remoteJid;
+    const text = msg.message.conversation || 
+                 msg.message.extendedTextMessage?.text || '';
 
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-        const from = msg.key.remoteJid;
+    // Load semua plugin
+    const pluginPath = path.join(__dirname, 'plugins');
+    const pluginFiles = fs.readdirSync(pluginPath).filter(file => file.endsWith('.js'));
 
-        if (!text || !text.startsWith(prefix)) return;
-
-        const command = text.slice(1).split(' ')[0].toLowerCase();
-
-        if (command === 'menu') {
-            await sock.sendMessage(from, { text: 'Hai! Ini Mitabot 👋\n\nPerintah tersedia:\n.menu\n.kick\n.warn\n.premium\n.ai <pertanyaan>\n\nBot aktif ✅' });
+    for (const file of pluginFiles) {
+      try {
+        const plugin = require(`./plugins/${file}`);
+        if (typeof plugin === 'function') {
+          await plugin(sock, msg, text, from);
         }
+      } catch (err) {
+        console.error(`Plugin error (${file}):`, err);
+      }
+    }
+  });
 
-        // Load plugin dinamis
-        const plugins = fs.readdirSync('./plugins').filter(f => f.endsWith('.js'));
-        for (const file of plugins) {
-            const plugin = require(`./plugins/${file}`);
-            await plugin(sock, msg, text, from);
-        }
-    });
-};
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
+    if (connection === 'close') {
+      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+      if (reason !== DisconnectReason.loggedOut) {
+        startBot(); // Reconnect otomatis
+      } else {
+        console.log('Bot logged out');
+      }
+    }
+  });
+
+  console.log('🤖 Mitabot aktif dan siap digunakan!');
+}
 
 startBot();

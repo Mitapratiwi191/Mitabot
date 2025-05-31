@@ -1,9 +1,14 @@
-
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { 
+  default: makeWASocket, 
+  useMultiFileAuthState, 
+  DisconnectReason, 
+  fetchLatestBaileysVersion 
+} = require('@whiskeysockets/baileys');
 const P = require('pino');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
+const qrcode = require('qrcode-terminal'); // Tambahkan ini
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth');
@@ -12,12 +17,32 @@ async function startBot() {
   const sock = makeWASocket({
     version,
     logger: P({ level: 'silent' }),
-    printQRInTerminal: true,
     auth: state
+    // HAPUS: printQRInTerminal
   });
 
   sock.ev.on('creds.update', saveCreds);
 
+  // Tampilkan QR manual
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      qrcode.generate(qr, { small: true }); // QR tampil di terminal
+    }
+
+    if (connection === 'close') {
+      const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('Koneksi terputus. Reconnecting...', shouldReconnect);
+      if (shouldReconnect) startBot();
+    }
+
+    if (connection === 'open') {
+      console.log('✅ Bot berhasil terhubung!');
+    }
+  });
+
+  // Plugin handler
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (!messages || !messages[0]) return;
     const msg = messages[0];
@@ -26,7 +51,6 @@ async function startBot() {
 
     if (!from || !text) return;
 
-    // Load plugin folder
     const pluginFolder = path.join(__dirname, 'plugins');
     const files = fs.readdirSync(pluginFolder);
 

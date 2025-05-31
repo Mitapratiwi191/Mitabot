@@ -1,48 +1,46 @@
+
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const pino = require('pino');
-const { Boom } = require('@hapi/boom');
+const P = require('pino');
+const fs = require('fs');
 const path = require('path');
-const { handleCommand } = require('./lib/features');
+const config = require('./config');
 
 async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('./auth');
+  const { state, saveCreds } = await useMultiFileAuthState('auth');
+  const { version, isLatest } = await fetchLatestBaileysVersion();
 
-    const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`Using WA version v${version.join('.')}, isLatest: ${isLatest}`);
+  const sock = makeWASocket({
+    version,
+    logger: P({ level: 'silent' }),
+    printQRInTerminal: true,
+    auth: state
+  });
 
-    const sock = makeWASocket({
-        logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
-        auth: state,
-        version
-    });
+  sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (!messages || !messages[0]) return;
+    const msg = messages[0];
+    const from = msg.key.remoteJid;
+    const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
 
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
-        if(connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Connection closed due to', lastDisconnect.error, ', reconnecting:', shouldReconnect);
-            if(shouldReconnect) {
-                startBot();
-            }
-        } else if(connection === 'open') {
-            console.log('Connected to WhatsApp');
-        }
-    });
+    if (!from || !text) return;
 
-    sock.ev.on('messages.upsert', async ({ messages, type }) => {
-        if(type !== 'notify') return;
-        const msg = messages[0];
-        if(!msg.message) return;
+    // Load plugin folder
+    const pluginFolder = path.join(__dirname, 'plugins');
+    const files = fs.readdirSync(pluginFolder);
 
+    for (const file of files) {
+      const plugin = require(path.join(pluginFolder, file));
+      if (typeof plugin === 'function') {
         try {
-            await handleCommand(sock, msg);
-        } catch (err) {
-            console.error('Failed to handle command:', err);
+          await plugin(sock, msg, text, from);
+        } catch (e) {
+          console.error(`[PLUGIN ERROR] ${file}:`, e.message);
         }
-    });
+      }
+    }
+  });
 }
 
 startBot();

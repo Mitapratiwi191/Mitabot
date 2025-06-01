@@ -1,34 +1,36 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
-const qrcode = require('qrcode-terminal');
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: true
+    auth: state
   });
 
   sock.ev.on('creds.update', saveCreds);
 
+  // DETEKSI PESAN MASUK
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg || !msg.message) return;
 
     const sender = msg.key.remoteJid;
-    const isFromMe = msg.key.fromMe;
-    if (isFromMe) return;
+    const fromMe = msg.key.fromMe;
 
-    const getContent = (msg) => {
+    // Log isi mentah pesan buat debug
+    console.log('📥 PESAN MASUK:', JSON.stringify(msg.message, null, 2));
+
+    // Fungsi ambil isi teks dari pesan
+    const getText = (msg) => {
       const m = msg.message;
-      if (!m) return '';
       if (m.conversation) return m.conversation;
       if (m.extendedTextMessage) return m.extendedTextMessage.text;
       if (m.imageMessage?.caption) return m.imageMessage.caption;
       if (m.videoMessage?.caption) return m.videoMessage.caption;
+      if (m.documentWithCaptionMessage?.caption) return m.documentWithCaptionMessage.caption;
       return '';
     };
 
-    const text = getContent(msg).toLowerCase();
+    const text = getText(msg).toLowerCase();
 
     console.log(`📩 Dari: ${sender}`);
     console.log(`💬 Pesan: ${text}`);
@@ -52,12 +54,12 @@ async function startBot() {
         await sock.sendMessage(sender, { text: 'Aku di sini kok... walau cuma bot, tapi siap nemenin kamu 😔💙' }, { quoted: msg });
       }
     } catch (err) {
-      console.error('⚠️ Gagal kirim pesan:', err);
+      console.error('❌ Gagal kirim pesan:', err);
     }
   });
 
-  // Biar bot tetap hidup dan gak langsung exit
-  await new Promise(() => {});
+  console.log('✅ Bot sudah aktif!');
+  await new Promise(() => {}); // Supaya bot tetap hidup
 }
 
 startBot();

@@ -1,4 +1,3 @@
-
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 
@@ -15,13 +14,21 @@ async function startBot() {
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
 
-    const text = msg.message.conversation?.toLowerCase() ||
-                 msg.message.extendedTextMessage?.text?.toLowerCase() || '';
+    const getContent = (msg) => {
+      const m = msg.message;
+      if (!m) return '';
+      if (m.conversation) return m.conversation;
+      if (m.extendedTextMessage) return m.extendedTextMessage.text;
+      if (m.imageMessage && m.imageMessage.caption) return m.imageMessage.caption;
+      if (m.videoMessage && m.videoMessage.caption) return m.videoMessage.caption;
+      return '';
+    };
 
-    console.log('Pesan diterima:', text);  // Untuk cek pesan masuk di Termux
+    const text = getContent(msg).toLowerCase();
+    console.log('Pesan diterima:', text);
 
     const jid = msg.key.remoteJid;
-    if (!jid.endsWith('@g.us')) return; // hanya balas di grup WA
+    if (!jid.endsWith('@g.us')) return; // hanya grup
 
     if (text.includes('halo')) {
       await sock.sendMessage(jid, { text: 'Halo sayang 🖤 gimana kabarnya hari ini?' }, { quoted: msg });

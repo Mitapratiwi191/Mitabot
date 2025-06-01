@@ -1,4 +1,3 @@
-                                                                                                     }
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 
@@ -11,6 +10,17 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
+  const getContent = (msg) => {
+    const m = msg.message;
+    if (!m) return '';
+
+    if (m.conversation) return m.conversation;
+    if (m.extendedTextMessage?.text) return m.extendedTextMessage.text;
+    if (m.imageMessage?.caption) return m.imageMessage.caption;
+    if (m.videoMessage?.caption) return m.videoMessage.caption;
+    return '';
+  };
+
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg || !msg.message) return;
@@ -19,26 +29,13 @@ async function startBot() {
     const isFromMe = msg.key.fromMe;
     if (isFromMe) return;
 
-    const getContent = (msg) => {
-      const m = msg.message;
-      if (!m) return '';
-      if (m.conversation) return m.conversation;
-      if (m.extendedTextMessage) return m.extendedTextMessage.text;
-      if (m.imageMessage?.caption) return m.imageMessage.caption;
-      if (m.videoMessage?.caption) return m.videoMessage.caption;
-      return '';
-    };
-
     const text = getContent(msg).toLowerCase();
 
-    // 🔍 Log debugging
+    // Debug log supaya kamu bisa cek isi pesan
     console.log(`📩 Dari: ${sender}`);
-    console.log(`💬 Pesan: ${text}`);
+    console.log(`💬 Pesan: "${text}"`);
 
     try {
-      // 💡 Kamu bisa hapus pengecekan grup kalau ingin support pribadi juga
-      // if (!sender.endsWith('@g.us')) return;
-
       if (text.includes('halo')) {
         await sock.sendMessage(sender, { text: 'Halo sayang 🖤 gimana kabarnya hari ini?' }, { quoted: msg });
       } else if (text.includes('pagi')) {

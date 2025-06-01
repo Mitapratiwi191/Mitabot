@@ -1,61 +1,44 @@
 
-// Mitabot-TermuxLite: Bot WhatsApp sederhana berbasis baileys
-
-const {
-    default: makeWASocket,
-    useSingleFileAuthState,
-    fetchLatestBaileysVersion,
-    DisconnectReason
-} = require("@whiskeysockets/baileys");
-
-const { Boom } = require("@hapi/boom");
-const P = require("pino");
-const fs = require("fs");
-const path = require("path");
-
-// Setup penyimpanan session
-const { state, saveState } = useSingleFileAuthState('./session.json');
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const qrcode = require('qrcode-terminal');
 
 async function startBot() {
-    const { version, isLatest } = await fetchLatestBaileysVersion();
-    const sock = makeWASocket({
-        version,
-        logger: P({ level: "silent" }),
-        printQRInTerminal: true,
-        auth: state,
-        browser: ['Mitabot', 'Chrome', '121.0.0.0']
-    });
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: true
+  });
 
-    sock.ev.on("creds.update", saveState);
+  sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on("connection.update", (update) => {
-        const { connection, lastDisconnect } = update;
-        if (connection === "close") {
-            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log("Koneksi terputus. Reconnect:", shouldReconnect);
-            if (shouldReconnect) startBot();
-        } else if (connection === "open") {
-            console.log("Bot berhasil terhubung ke WhatsApp");
-        }
-    });
+  sock.ev.on('messages.upsert', async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message || msg.key.fromMe) return;
 
-    sock.ev.on("messages.upsert", async ({ messages, type }) => {
-        if (type !== 'notify') return;
-        const msg = messages[0];
-        if (!msg.message) return;
-        const from = msg.key.remoteJid;
+    const text = msg.message.conversation?.toLowerCase() ||
+                 msg.message.extendedTextMessage?.text?.toLowerCase() || '';
+    const jid = msg.key.remoteJid;
 
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-        if (!text) return;
+    if (!jid.endsWith('@g.us')) return; // Hanya membalas di grup
 
-        console.log(`Pesan dari ${from}: ${text}`);
-
-        if (text.toLowerCase() === "halo") {
-            await sock.sendMessage(from, { text: "Halo juga! Aku Mitabot 🤖 Siap membantu." });
-        } else if (text.toLowerCase().includes("menu")) {
-            await sock.sendMessage(from, { text: "Berikut menu Mitabot:\n1. Halo\n2. Menu\n3. Bantuan" });
-        }
-    });
+    if (text.includes('halo')) {
+      await sock.sendMessage(jid, { text: 'Halo sayang 🖤 gimana kabarnya hari ini?' }, { quoted: msg });
+    } else if (text.includes('pagi')) {
+      await sock.sendMessage(jid, { text: 'Selamat pagi sayang 🌤️ semoga harimu indah!' }, { quoted: msg });
+    } else if (text.includes('siang')) {
+      await sock.sendMessage(jid, { text: 'Selamat siang 🌞 jangan lupa makan ya!' }, { quoted: msg });
+    } else if (text.includes('sore')) {
+      await sock.sendMessage(jid, { text: 'Selamat sore 🌇 semangat terus ya!' }, { quoted: msg });
+    } else if (text.includes('malam')) {
+      await sock.sendMessage(jid, { text: 'Selamat malam 🌙 mimpi indah ya sayang.' }, { quoted: msg });
+    } else if (text.includes('assalamualaikum') || text.includes('salam')) {
+      await sock.sendMessage(jid, { text: 'Waalaikumsalam, semoga damai dan bahagia selalu menyertaimu 🤍' }, { quoted: msg });
+    } else if (text.includes('capek')) {
+      await sock.sendMessage(jid, { text: 'Istirahat dulu ya sayang... jangan dipaksa, kamu juga butuh tenang 🫂' }, { quoted: msg });
+    } else if (text.includes('sedih')) {
+      await sock.sendMessage(jid, { text: 'Aku di sini kok... walau cuma bot, tapi siap nemenin kamu 😔💙' }, { quoted: msg });
+    }
+  });
 }
 
 startBot();

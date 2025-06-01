@@ -30,7 +30,6 @@ async function startBot() {
 
     const text = getContent(msg).toLowerCase();
 
-    // 🔍 Log debugging
     console.log(`📩 Dari: ${sender}`);
     console.log(`💬 Pesan: ${text}`);
 
@@ -57,7 +56,7 @@ async function startBot() {
     }
   });
 
-  // Biar bot tetap jalan terus dan nggak langsung exit
+  // Biar bot tetap hidup dan gak langsung exit
   await new Promise(() => {});
 }
 

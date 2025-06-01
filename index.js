@@ -10,17 +10,6 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  const getContent = (msg) => {
-    const m = msg.message;
-    if (!m) return '';
-
-    if (m.conversation) return m.conversation;
-    if (m.extendedTextMessage?.text) return m.extendedTextMessage.text;
-    if (m.imageMessage?.caption) return m.imageMessage.caption;
-    if (m.videoMessage?.caption) return m.videoMessage.caption;
-    return '';
-  };
-
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg || !msg.message) return;
@@ -29,11 +18,21 @@ async function startBot() {
     const isFromMe = msg.key.fromMe;
     if (isFromMe) return;
 
+    const getContent = (msg) => {
+      const m = msg.message;
+      if (!m) return '';
+      if (m.conversation) return m.conversation;
+      if (m.extendedTextMessage) return m.extendedTextMessage.text;
+      if (m.imageMessage?.caption) return m.imageMessage.caption;
+      if (m.videoMessage?.caption) return m.videoMessage.caption;
+      return '';
+    };
+
     const text = getContent(msg).toLowerCase();
 
-    // Debug log supaya kamu bisa cek isi pesan
+    // 🔍 Log debugging
     console.log(`📩 Dari: ${sender}`);
-    console.log(`💬 Pesan: "${text}"`);
+    console.log(`💬 Pesan: ${text}`);
 
     try {
       if (text.includes('halo')) {
@@ -57,6 +56,9 @@ async function startBot() {
       console.error('⚠️ Gagal kirim pesan:', err);
     }
   });
+
+  // Biar bot tetap jalan terus dan nggak langsung exit
+  await new Promise(() => {});
 }
 
 startBot();

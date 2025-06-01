@@ -1,39 +1,56 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const qrcode = require('qrcode-terminal');
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-
   const sock = makeWASocket({
     auth: state,
+    // printQRInTerminal: true // sudah deprecated
+  });
+
+  // ⬇️ Tambahan untuk menampilkan QR manual
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect, qr } = update;
+    if (qr) {
+      console.log('📸 Silakan scan QR berikut:');
+      qrcode.generate(qr, { small: true });
+    }
+
+    if (connection === 'close') {
+      console.log('🔌 Koneksi terputus, mencoba reconnect...');
+      startBot(); // Reconnect otomatis
+    } else if (connection === 'open') {
+      console.log('✅ Bot berhasil terhubung ke WhatsApp');
+    }
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  // Event pesan masuk
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg || !msg.message) return;
 
     const sender = msg.key.remoteJid;
-    if (msg.key.fromMe) return; // Jangan balas pesan dari diri sendiri
+    const isFromMe = msg.key.fromMe;
+    if (isFromMe) return;
 
-    // Fungsi ambil isi teks dari pesan
-    const getText = (msg) => {
+    const getContent = (msg) => {
       const m = msg.message;
+      if (!m) return '';
       if (m.conversation) return m.conversation;
       if (m.extendedTextMessage) return m.extendedTextMessage.text;
       if (m.imageMessage?.caption) return m.imageMessage.caption;
       if (m.videoMessage?.caption) return m.videoMessage.caption;
-      if (m.documentWithCaptionMessage?.caption) return m.documentWithCaptionMessage.caption;
       return '';
     };
 
-    const text = getText(msg).toLowerCase();
+    const text = getContent(msg).toLowerCase();
 
-    console.log(`📩 Pesan dari ${sender}: ${text}`);
+    console.log(`📩 Dari: ${sender}`);
+    console.log(`💬 Pesan: ${text}`);
 
     try {
-      if (text.includes('halobca')) {
+      if (text.includes('halo')) {
         await sock.sendMessage(sender, { text: 'Halo sayang 🖤 gimana kabarnya hari ini?' }, { quoted: msg });
       } else if (text.includes('pagi')) {
         await sock.sendMessage(sender, { text: 'Selamat pagi sayang 🌤️ semoga harimu indah!' }, { quoted: msg });
@@ -51,13 +68,11 @@ async function startBot() {
         await sock.sendMessage(sender, { text: 'Aku di sini kok... walau cuma bot, tapi siap nemenin kamu 😔💙' }, { quoted: msg });
       }
     } catch (err) {
-      console.error('❌ Gagal kirim pesan:', err);
+      console.error('⚠️ Gagal kirim pesan:', err);
     }
   });
 
-  console.log('✅ Bot sudah aktif! Scan QR dan chat aku...');
-
-  // Biarkan bot tetap jalan terus
+  // Supaya bot tetap hidup
   await new Promise(() => {});
 }
 

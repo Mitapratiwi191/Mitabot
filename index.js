@@ -2,22 +2,20 @@ const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysocket
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+
   const sock = makeWASocket({
-    auth: state
+    auth: state,
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  // DETEKSI PESAN MASUK
+  // Event pesan masuk
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg || !msg.message) return;
 
     const sender = msg.key.remoteJid;
-    const fromMe = msg.key.fromMe;
-
-    // Log isi mentah pesan buat debug
-    console.log('📥 PESAN MASUK:', JSON.stringify(msg.message, null, 2));
+    if (msg.key.fromMe) return; // Jangan balas pesan dari diri sendiri
 
     // Fungsi ambil isi teks dari pesan
     const getText = (msg) => {
@@ -32,11 +30,10 @@ async function startBot() {
 
     const text = getText(msg).toLowerCase();
 
-    console.log(`📩 Dari: ${sender}`);
-    console.log(`💬 Pesan: ${text}`);
+    console.log(`📩 Pesan dari ${sender}: ${text}`);
 
     try {
-      if (text.includes('halo')) {
+      if (text.includes('halobca')) {
         await sock.sendMessage(sender, { text: 'Halo sayang 🖤 gimana kabarnya hari ini?' }, { quoted: msg });
       } else if (text.includes('pagi')) {
         await sock.sendMessage(sender, { text: 'Selamat pagi sayang 🌤️ semoga harimu indah!' }, { quoted: msg });
@@ -58,8 +55,10 @@ async function startBot() {
     }
   });
 
-  console.log('✅ Bot sudah aktif!');
-  await new Promise(() => {}); // Supaya bot tetap hidup
+  console.log('✅ Bot sudah aktif! Scan QR dan chat aku...');
+
+  // Biarkan bot tetap jalan terus
+  await new Promise(() => {});
 }
 
 startBot();

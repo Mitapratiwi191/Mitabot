@@ -17,9 +17,11 @@ async function startBot() {
 
     const text = msg.message.conversation?.toLowerCase() ||
                  msg.message.extendedTextMessage?.text?.toLowerCase() || '';
-    const jid = msg.key.remoteJid;
 
-    if (!jid.endsWith('@g.us')) return; // Hanya membalas di grup
+    console.log('Pesan diterima:', text);  // Untuk cek pesan masuk di Termux
+
+    const jid = msg.key.remoteJid;
+    if (!jid.endsWith('@g.us')) return; // hanya balas di grup WA
 
     if (text.includes('halo')) {
       await sock.sendMessage(jid, { text: 'Halo sayang 🖤 gimana kabarnya hari ini?' }, { quoted: msg });

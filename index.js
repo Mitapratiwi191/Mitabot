@@ -1,7 +1,7 @@
-const { default: makeWASocket } = require('@whiskeysockets/baileys');
-const { useSingleFileAuthState } = require('@whiskeysockets/baileys/lib/utils/auth-utils');
+const { default: makeWASocket, useSingleFileAuthState } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 
+// File tempat nyimpen session
 const { state, saveState } = useSingleFileAuthState('./auth_info.json');
 
 async function startBot() {
@@ -10,33 +10,24 @@ async function startBot() {
     printQRInTerminal: true,
   });
 
+  // Simpan session setiap update
   sock.ev.on('creds.update', saveState);
 
-  sock.ev.on('connection.update', ({ connection, qr }) => {
+  // Cek status koneksi
+  sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      console.log('\n📷 Scan QR berikut ini:\n');
+      console.log('\n📷 Scan QR ini pakai WhatsApp kamu:\n');
       qrcode.generate(qr, { small: true });
     }
 
     if (connection === 'open') {
-      console.log('✅ Bot berhasil terhubung ke WhatsApp!');
+      console.log('✅ Bot berhasil tersambung ke WhatsApp!');
     }
 
     if (connection === 'close') {
-      console.log('❌ Koneksi ditutup. Mencoba sambung ulang...');
-      startBot();
-    }
-  });
-
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg.message) return;
-
-    const teks = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-    const pengirim = msg.key.remoteJid;
-
-    if (teks.toLowerCase() === 'ping') {
-      await sock.sendMessage(pengirim, { text: '🏓 Pong dari bot!' });
+      const reason = lastDisconnect?.error?.output?.statusCode;
+      console.log(`❌ Koneksi ditutup. Alasan: ${reason || 'tidak diketahui'}`);
+      startBot(); // otomatis reconnect
     }
   });
 }

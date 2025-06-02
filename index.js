@@ -1,5 +1,5 @@
-// index.js
-const { default: makeWASocket, useSingleFileAuthState } = require("@whiskeysockets/baileys");
+const makeWASocket = require("@whiskeysockets/baileys").default;
+const { useSingleFileAuthState } = require("@whiskeysockets/baileys/auth");
 const qrcode = require("qrcode-terminal");
 
 async function startBot() {
@@ -7,7 +7,7 @@ async function startBot() {
 
   const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: false, // kita pakai qrcode-terminal manual
+    printQRInTerminal: false,
   });
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
@@ -30,6 +30,7 @@ async function startBot() {
 }
 
 startBot();
+
 
 
 

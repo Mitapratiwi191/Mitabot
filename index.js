@@ -2,8 +2,7 @@ const {
   default: makeWASocket,
   useSingleFileAuthState,
   DisconnectReason,
-  makeInMemoryStore,
-} = require('@whiskeysockets/baileys');
+  makeInMemoryStore,const { useSingleFileAuthState } = require('@whiskeysockets/baileys/lib/State');
 const qrcode = require('qrcode-terminal');
 
 const authFile = './auth_info.json'; // file simpan sesi login

@@ -5,15 +5,29 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true
+    browser: ['Ubuntu', 'Chrome', '22.04.4']
   });
 
   sock.ev.on('creds.update', saveCreds);
 
+  // Tampilkan QR
+  sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
+    if (qr) {
+      console.clear();
+      console.log('📲 Scan QR berikut ini untuk login:\n');
+      qrcode.generate(qr, { small: true });
+    }
+    if (connection === 'open') {
+      console.log('✅ Bot berhasil login!');
+    } else if (connection === 'close') {
+      console.log('❌ Koneksi terputus.');
+    }
+  });
+
+  // Pesan masuk
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg || !msg.message) return;
-
     const sender = msg.key.remoteJid;
     const isFromMe = msg.key.fromMe;
     if (isFromMe) return;
@@ -29,68 +43,41 @@ async function startBot() {
     };
 
     const text = getContent(msg).toLowerCase();
+    console.log(`📩 Dari: ${sender}`);
+    console.log(`💬 Pesan: ${text}`);
 
-    const sendRandomReply = async (responses) => {
-      const random = responses[Math.floor(Math.random() * responses.length)];
-      await sock.sendMessage(sender, { text: random }, { quoted: msg });
+    // Keyword-based replies
+    const keywords = {
+      "halo": ["Hai juga!", "Halo! 👋", "Yo halo! Ada yang bisa dibantu?"],
+      "pagi": ["Selamat pagi! ☀️", "Pagi juga! Semangat ya!", "Semoga harimu menyenangkan!"],
+      "siang": ["Selamat siang! 🌞", "Siang juga, jangan lupa makan~", "Siang semangat terus ya!"],
+      "sore": ["Selamat sore! 🌅", "Sore juga~", "Waktunya santai sore 😌"],
+      "malam": ["Selamat malam 🌙", "Malam juga, selamat istirahat ya!", "Malam indah ya~"]
     };
 
-    try {
-      if (text.includes('halo')) {
-        await sendRandomReply([
-          'Halo sayang 🖤 gimana kabarnya hari ini?',
-          'Hai kamu~ 🌸 ada yang bisa aku bantu?',
-          'Halo! Semangat terus ya hari ini!'
-        ]);
-      } else if (text.includes('pagi')) {
-        await sendRandomReply([
-          'Selamat pagi sayang 🌤️ semoga harimu indah!',
-          'Pagi! Jangan lupa sarapan ya 💛',
-          'Met pagi! Awali hari dengan senyuman 😊'
-        ]);
-      } else if (text.includes('siang')) {
-        await sendRandomReply([
-          'Selamat siang 🌞 jangan lupa makan ya!',
-          'Siang gini enaknya ngopi bareng kamu ☕️',
-          'Udah makan siang belum? Jangan sampe kelaparan ya 🍽️'
-        ]);
-      } else if (text.includes('sore')) {
-        await sendRandomReply([
-          'Selamat sore 🌇 semangat terus ya!',
-          'Sore-sore gini enaknya santai bareng kamu 😌',
-          'Sore ceria untuk kamu yang luar biasa 🍃'
-        ]);
-      } else if (text.includes('malam')) {
-        await sendRandomReply([
-          'Selamat malam 🌙 mimpi indah ya sayang.',
-          'Met bobo yaa 💤 jangan lupa berdoa dulu~',
-          'Malam ini tenang... kayak hati aku kalo deket kamu ✨'
-        ]);
-      } else if (text.includes('assalamualaikum') || text.includes('salam')) {
-        await sendRandomReply([
-          'Waalaikumsalam, semoga damai dan bahagia selalu menyertaimu 🤍',
-          'Waalaikumsalam wr wb 🌿 semoga harimu penuh berkah',
-          'Salam kembali, semoga sehat dan sukses selalu!'
-        ]);
-      } else if (text.includes('capek')) {
-        await sendRandomReply([
-          'Istirahat dulu ya sayang... jangan dipaksa 🫂',
-          'Capek itu wajar... kamu hebat kok sudah sejauh ini 💪',
-          'Kalau capek, jangan lupa peluk bot ini 🤗'
-        ]);
-      } else if (text.includes('sedih')) {
-        await sendRandomReply([
-          'Aku di sini kok... walau cuma bot, tapi siap nemenin kamu 😔💙',
-          'Sedih itu bagian dari hidup... tapi kamu nggak sendiri 🤝',
-          'Mau cerita? Aku dengerin, ya 💌'
-        ]);
+    for (let key in keywords) {
+      if (text.includes(key)) {
+        const replyList = keywords[key];
+        const reply = replyList[Math.floor(Math.random() * replyList.length)];
+        await sock.sendMessage(sender, { text: reply }, { quoted: msg });
+        return;
       }
-    } catch (err) {
-      console.error('⚠️ Gagal kirim pesan:', err);
     }
+
+    // Balasan random kalau bukan keyword di atas
+    const replies = [
+      "Aku dengerin kok 😇",
+      "Hmm? Cerita dong~",
+      "Semangat ya kamu hari ini! 💪",
+      "Aku bot, tapi bisa nemenin kamu loh 🤖💖",
+      "Kalau butuh teman curhat, aku ada kok.",
+      "Aku siap nemenin kamu kapan aja 🌙"
+    ];
+    const randomReply = replies[Math.floor(Math.random() * replies.length)];
+    await sock.sendMessage(sender, { text: randomReply }, { quoted: msg });
   });
 
-  await new Promise(() => {}); // agar bot tetap hidup
+  await new Promise(() => {});
 }
 
 startBot();

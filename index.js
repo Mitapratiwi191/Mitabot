@@ -5,23 +5,7 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({
     auth: state,
-    // printQRInTerminal: true // sudah deprecated
-  });
-
-  // ⬇️ Tambahan untuk menampilkan QR manual
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update;
-    if (qr) {
-      console.log('📸 Silakan scan QR berikut:');
-      qrcode.generate(qr, { small: true });
-    }
-
-    if (connection === 'close') {
-      console.log('🔌 Koneksi terputus, mencoba reconnect...');
-      startBot(); // Reconnect otomatis
-    } else if (connection === 'open') {
-      console.log('✅ Bot berhasil terhubung ke WhatsApp');
-    }
+    printQRInTerminal: true
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -46,34 +30,67 @@ async function startBot() {
 
     const text = getContent(msg).toLowerCase();
 
-    console.log(`📩 Dari: ${sender}`);
-    console.log(`💬 Pesan: ${text}`);
+    const sendRandomReply = async (responses) => {
+      const random = responses[Math.floor(Math.random() * responses.length)];
+      await sock.sendMessage(sender, { text: random }, { quoted: msg });
+    };
 
     try {
       if (text.includes('halo')) {
-        await sock.sendMessage(sender, { text: 'Halo sayang 🖤 gimana kabarnya hari ini?' }, { quoted: msg });
+        await sendRandomReply([
+          'Halo sayang 🖤 gimana kabarnya hari ini?',
+          'Hai kamu~ 🌸 ada yang bisa aku bantu?',
+          'Halo! Semangat terus ya hari ini!'
+        ]);
       } else if (text.includes('pagi')) {
-        await sock.sendMessage(sender, { text: 'Selamat pagi sayang 🌤️ semoga harimu indah!' }, { quoted: msg });
+        await sendRandomReply([
+          'Selamat pagi sayang 🌤️ semoga harimu indah!',
+          'Pagi! Jangan lupa sarapan ya 💛',
+          'Met pagi! Awali hari dengan senyuman 😊'
+        ]);
       } else if (text.includes('siang')) {
-        await sock.sendMessage(sender, { text: 'Selamat siang 🌞 jangan lupa makan ya!' }, { quoted: msg });
+        await sendRandomReply([
+          'Selamat siang 🌞 jangan lupa makan ya!',
+          'Siang gini enaknya ngopi bareng kamu ☕️',
+          'Udah makan siang belum? Jangan sampe kelaparan ya 🍽️'
+        ]);
       } else if (text.includes('sore')) {
-        await sock.sendMessage(sender, { text: 'Selamat sore 🌇 semangat terus ya!' }, { quoted: msg });
+        await sendRandomReply([
+          'Selamat sore 🌇 semangat terus ya!',
+          'Sore-sore gini enaknya santai bareng kamu 😌',
+          'Sore ceria untuk kamu yang luar biasa 🍃'
+        ]);
       } else if (text.includes('malam')) {
-        await sock.sendMessage(sender, { text: 'Selamat malam 🌙 mimpi indah ya sayang.' }, { quoted: msg });
+        await sendRandomReply([
+          'Selamat malam 🌙 mimpi indah ya sayang.',
+          'Met bobo yaa 💤 jangan lupa berdoa dulu~',
+          'Malam ini tenang... kayak hati aku kalo deket kamu ✨'
+        ]);
       } else if (text.includes('assalamualaikum') || text.includes('salam')) {
-        await sock.sendMessage(sender, { text: 'Waalaikumsalam, semoga damai dan bahagia selalu menyertaimu 🤍' }, { quoted: msg });
+        await sendRandomReply([
+          'Waalaikumsalam, semoga damai dan bahagia selalu menyertaimu 🤍',
+          'Waalaikumsalam wr wb 🌿 semoga harimu penuh berkah',
+          'Salam kembali, semoga sehat dan sukses selalu!'
+        ]);
       } else if (text.includes('capek')) {
-        await sock.sendMessage(sender, { text: 'Istirahat dulu ya sayang... jangan dipaksa, kamu juga butuh tenang 🫂' }, { quoted: msg });
+        await sendRandomReply([
+          'Istirahat dulu ya sayang... jangan dipaksa 🫂',
+          'Capek itu wajar... kamu hebat kok sudah sejauh ini 💪',
+          'Kalau capek, jangan lupa peluk bot ini 🤗'
+        ]);
       } else if (text.includes('sedih')) {
-        await sock.sendMessage(sender, { text: 'Aku di sini kok... walau cuma bot, tapi siap nemenin kamu 😔💙' }, { quoted: msg });
+        await sendRandomReply([
+          'Aku di sini kok... walau cuma bot, tapi siap nemenin kamu 😔💙',
+          'Sedih itu bagian dari hidup... tapi kamu nggak sendiri 🤝',
+          'Mau cerita? Aku dengerin, ya 💌'
+        ]);
       }
     } catch (err) {
       console.error('⚠️ Gagal kirim pesan:', err);
     }
   });
 
-  // Supaya bot tetap hidup
-  await new Promise(() => {});
+  await new Promise(() => {}); // agar bot tetap hidup
 }
 
 startBot();

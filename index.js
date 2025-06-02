@@ -1,5 +1,4 @@
-
-import makeWASocket, { useSingleFileAuthState } from "@whiskeysockets/baileys";
+import makeWASocket, { useSingleFileAuthState } from "baileys";
 import * as qrcode from "qrcode-terminal";
 
 async function startBot() {

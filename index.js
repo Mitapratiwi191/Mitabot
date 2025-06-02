@@ -1,24 +1,23 @@
-import makeWASocket, { useSingleFileAuthState } from "baileys";
-import * as qrcode from "qrcode-terminal";
+
+const makeWASocket = require("baileys").default;
+const { useSingleFileAuthState } = require("baileys");
+const qrcode = require("qrcode-terminal");
 
 async function startBot() {
-  // Load sesi dari file auth_info.json atau buat baru
   const { state, saveState } = useSingleFileAuthState("./auth_info.json");
 
-  // Buat socket WA dengan auth state
   const sock = makeWASocket({
     auth: state,
   });
 
-  // Event connection.update
   sock.ev.on("connection.update", (update) => {
-    console.log("Update connection event:", update); // Debug print lengkap
+    console.log("Update connection event:", update);
 
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
       console.log("\n📲 Scan QR berikut ini untuk login:\n");
-      qrcode.generate(qr, { small: true }); // cetak QR di terminal
+      qrcode.generate(qr, { small: true });
     }
 
     if (connection === "open") {
@@ -31,7 +30,6 @@ async function startBot() {
     }
   });
 
-  // Simpan sesi setiap kali terjadi update kredensial
   sock.ev.on("creds.update", saveState);
 }
 

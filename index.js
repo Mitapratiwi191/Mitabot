@@ -1,37 +1,35 @@
-const makeWASocket = require('@adiwajshing/baileys').default
-const { useSingleFileAuthState } = require('@adiwajshing/baileys')
-const pino = require('pino')
+import makeWASocket, { useSingleFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import qrcode from 'qrcode-terminal';
 
-const { state, saveState } = useSingleFileAuthState('./auth_info.json')
+const { state, saveState } = useSingleFileAuthState('./auth_info.json');
 
 async function startBot() {
   const sock = makeWASocket({
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: true,
     auth: state,
-  })
+    printQRInTerminal: true
+  });
 
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update
-    if (connection === 'close') {
-      if ((lastDisconnect.error)?.output?.statusCode !== 401) {
-        console.log('Koneksi terputus, mencoba reconnect...')
-        startBot()
-      } else {
-        console.log('Kamu sudah logout dari WhatsApp, silakan hapus auth_info.json dan login ulang.')
-      }
+    const { connection, lastDisconnect, qr } = update;
+    if (qr) {
+      qrcode.generate(qr, { small: true });
     }
-    console.log('Update koneksi:', update)
-  })
+    if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('connection closed due to', lastDisconnect.error, ', reconnecting:', shouldReconnect);
+      if (shouldReconnect) {
+        startBot();
+      }
+    } else if (connection === 'open') {
+      console.log('Connected');
+    }
+  });
 
-  sock.ev.on('creds.update', saveState)
-
-  sock.ev.on('messages.upsert', ({ messages }) => {
-    console.log('Pesan baru:', messages[0].message)
-  })
+  sock.ev.on('creds.update', saveState);
 }
 
-startBot()
+startBot();
+
 
 
 

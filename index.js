@@ -1,6 +1,4 @@
-
-const makeWASocket = require("baileys").default;
-const { useSingleFileAuthState } = require("baileys");
+const { default: makeWASocket, useSingleFileAuthState } = require("@whiskeysockets/baileys");
 const qrcode = require("qrcode-terminal");
 
 async function startBot() {
@@ -10,22 +8,18 @@ async function startBot() {
     auth: state,
   });
 
-  sock.ev.on("connection.update", (update) => {
-    console.log("Update connection event:", update);
-
-    const { connection, lastDisconnect, qr } = update;
-
+  sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      console.log("\n📲 Scan QR berikut ini untuk login:\n");
+      console.log("Scan QR ini untuk login:");
       qrcode.generate(qr, { small: true });
     }
 
     if (connection === "open") {
-      console.log("✅ Bot sudah berhasil login!");
+      console.log("✅ Bot berhasil terhubung!");
     } else if (connection === "close") {
-      console.log("❌ Koneksi terputus!");
+      console.log("❌ Koneksi terputus.");
       if (lastDisconnect?.error) {
-        console.log("Error:", lastDisconnect.error);
+        console.log("Alasan:", lastDisconnect.error);
       }
     }
   });
@@ -34,3 +28,4 @@ async function startBot() {
 }
 
 startBot();
+

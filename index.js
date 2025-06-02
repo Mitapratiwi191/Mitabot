@@ -1,4 +1,5 @@
-const { default: makeWASocket, useSingleFileAuthState } = require('@adiwajshing/baileys');
+const baileys = require('@adiwajshing/baileys');
+const { default: makeWASocket, useSingleFileAuthState } = baileys;
 const { state, saveState } = useSingleFileAuthState('./auth_info.json');
 
 async function startBot() {
@@ -22,6 +23,7 @@ async function startBot() {
 }
 
 startBot();
+
 
 
 

@@ -13,10 +13,11 @@ async function startBot() {
   // Tampilkan QR
   sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      console.clear();
-      console.log('📲 Scan QR berikut ini untuk login:\n');
-      qrcode.generate(qr, { small: true });
-    }
+  // console.clear();  // comment atau hapus ini supaya QR tidak hilang
+  console.log('📲 Scan QR berikut ini untuk login:\n');
+  qrcode.generate(qr, { small: true });
+}
+
     if (connection === 'open') {
       console.log('✅ Bot berhasil login!');
     } else if (connection === 'close') {

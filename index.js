@@ -7,11 +7,12 @@ async function startBot() {
 
   const sock = makeWASocket({
     auth: state,
+    printQRInTerminal: false, // kita pakai qrcode-terminal manual
   });
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      console.log("Scan QR ini untuk login:");
+      console.log("📲 Scan QR ini untuk login:");
       qrcode.generate(qr, { small: true });
     }
 
@@ -20,7 +21,7 @@ async function startBot() {
     } else if (connection === "close") {
       console.log("❌ Koneksi terputus.");
       if (lastDisconnect?.error) {
-        console.log("Alasan:", lastDisconnect.error);
+        console.error("Alasan:", lastDisconnect.error.message);
       }
     }
   });
@@ -29,5 +30,6 @@ async function startBot() {
 }
 
 startBot();
+
 
 

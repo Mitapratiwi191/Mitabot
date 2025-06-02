@@ -1,7 +1,6 @@
 const { default: makeWASocket } = require('@whiskeysockets/baileys');
 const { useSingleFileAuthState } = require('@whiskeysockets/baileys/lib/utils/auth-utils');
 const qrcode = require('qrcode-terminal');
-const fs = require('fs');
 
 const { state, saveState } = useSingleFileAuthState('./auth_info.json');
 
@@ -13,7 +12,7 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveState);
 
-  sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
+  sock.ev.on('connection.update', ({ connection, qr }) => {
     if (qr) {
       console.log('\n📷 Scan QR berikut ini:\n');
       qrcode.generate(qr, { small: true });
@@ -32,7 +31,7 @@ async function startBot() {
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message) return;
-    
+
     const teks = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
     const pengirim = msg.key.remoteJid;
 
@@ -43,6 +42,7 @@ async function startBot() {
 }
 
 startBot();
+
 
 
 

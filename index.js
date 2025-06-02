@@ -1,40 +1,38 @@
-import makeWASocket, { useSingleFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@adiwajshing/baileys'
-import { Boom } from '@hapi/boom'
-import pino from 'pino'
+const makeWASocket = require('@adiwajshing/baileys').default
+const { useSingleFileAuthState } = require('@adiwajshing/baileys')
+const pino = require('pino')
 
 const { state, saveState } = useSingleFileAuthState('./auth_info.json')
 
-async function startSock() {
-  const { version } = await fetchLatestBaileysVersion()
-  console.log('Using WA version', version)
-
+async function startBot() {
   const sock = makeWASocket({
     logger: pino({ level: 'silent' }),
     printQRInTerminal: true,
     auth: state,
-    version
   })
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect } = update
-    if(connection === 'close') {
-      if((lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
-        startSock()
+    if (connection === 'close') {
+      if ((lastDisconnect.error)?.output?.statusCode !== 401) {
+        console.log('Koneksi terputus, mencoba reconnect...')
+        startBot()
       } else {
-        console.log('Connection closed. You are logged out.')
+        console.log('Kamu sudah logout dari WhatsApp, silakan hapus auth_info.json dan login ulang.')
       }
     }
-    console.log('connection update', update)
+    console.log('Update koneksi:', update)
   })
 
   sock.ev.on('creds.update', saveState)
 
   sock.ev.on('messages.upsert', ({ messages }) => {
-    console.log('New message:', messages[0]?.message)
+    console.log('Pesan baru:', messages[0].message)
   })
 }
 
-startSock()
+startBot()
+
 
 
 

@@ -1,8 +1,14 @@
-import makeWASocket from "@whiskeysockets/baileys";
+
+import makeWASocket, { useSingleFileAuthState } from "@whiskeysockets/baileys";
 import * as qrcode from "qrcode-terminal";
 
 async function startBot() {
-  const sock = makeWASocket();
+  // Load atau buat file auth_info.json untuk simpan sesi
+  const { state, saveState } = useSingleFileAuthState('./auth_info.json');
+
+  const sock = makeWASocket({
+    auth: state
+  });
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -22,9 +28,8 @@ async function startBot() {
     }
   });
 
-  sock.ev.on('creds.update', () => {
-    // otomatis simpan session
-  });
+  // Simpan sesi saat terjadi perubahan
+  sock.ev.on('creds.update', saveState);
 }
 
 startBot();

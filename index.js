@@ -1,7 +1,8 @@
 
+// index.js
 const baileys = require("@whiskeysockets/baileys");
+const { useSingleFileAuthState } = require("@whiskeysockets/baileys/lib/Auth");
 const makeWASocket = baileys.default;
-const { useSingleFileAuthState } = baileys;
 const qrcode = require("qrcode-terminal");
 
 async function startBot() {

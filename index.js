@@ -1,28 +1,41 @@
-const baileys = require('@adiwajshing/baileys');
-const { default: makeWASocket, useSingleFileAuthState } = baileys;
-const { state, saveState } = useSingleFileAuthState('./auth_info.json');
+import makeWASocket, { useSingleFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@adiwajshing/baileys'
+import { Boom } from '@hapi/boom'
+import pino from 'pino'
 
-async function startBot() {
-    const sock = makeWASocket({
-        auth: state
-    });
+const { state, saveState } = useSingleFileAuthState('./auth_info.json')
 
-    sock.ev.on('creds.update', saveState);
+async function startSock() {
+  const { version } = await fetchLatestBaileysVersion()
+  console.log('Using WA version', version)
 
-    sock.ev.on('connection.update', (update) => {
-        console.log(update);
-        if (update.connection === 'close') {
-            console.log('Connection closed, reconnecting...');
-            startBot();
-        }
-    });
+  const sock = makeWASocket({
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: true,
+    auth: state,
+    version
+  })
 
-    sock.ev.on('messages.upsert', ({ messages }) => {
-        console.log('New message:', messages);
-    });
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update
+    if(connection === 'close') {
+      if((lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
+        startSock()
+      } else {
+        console.log('Connection closed. You are logged out.')
+      }
+    }
+    console.log('connection update', update)
+  })
+
+  sock.ev.on('creds.update', saveState)
+
+  sock.ev.on('messages.upsert', ({ messages }) => {
+    console.log('New message:', messages[0]?.message)
+  })
 }
 
-startBot();
+startSock()
+
 
 
 

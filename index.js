@@ -1,38 +1,59 @@
-const { default: makeWASocket, useSingleFileAuthState } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useSingleFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode-terminal');
 
-// File tempat nyimpen session
+// Gunakan file auth untuk menyimpan sesi login
 const { state, saveState } = useSingleFileAuthState('./auth_info.json');
 
+// Fungsi utama
 async function startBot() {
   const sock = makeWASocket({
     auth: state,
     printQRInTerminal: true,
   });
 
-  // Simpan session setiap update
+  // Simpan sesi saat ada perubahan
   sock.ev.on('creds.update', saveState);
 
-  // Cek status koneksi
-  sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
+  // Tampilkan log koneksi
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
     if (qr) {
-      console.log('\n📷 Scan QR ini pakai WhatsApp kamu:\n');
+      console.log('\n📷 Scan QR Code dengan cepat!\n');
       qrcode.generate(qr, { small: true });
     }
 
-    if (connection === 'open') {
-      console.log('✅ Bot berhasil tersambung ke WhatsApp!');
-    }
-
     if (connection === 'close') {
-      const reason = lastDisconnect?.error?.output?.statusCode;
-      console.log(`❌ Koneksi ditutup. Alasan: ${reason || 'tidak diketahui'}`);
-      startBot(); // otomatis reconnect
+      const statusCode = Boom.isBoom(lastDisconnect?.error) ? lastDisconnect.error.output.statusCode : null;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      console.log('❌ Koneksi terputus. Coba sambung ulang...', shouldReconnect);
+      if (shouldReconnect) {
+        startBot();
+      }
+    } else if (connection === 'open') {
+      console.log('✅ Bot berhasil terhubung ke WhatsApp!');
+    }
+  });
+
+  // Balasan otomatis sederhana
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return;
+    const msg = messages[0];
+    if (!msg.message) return;
+
+    const sender = msg.key.remoteJid;
+    const teks = msg.message.conversation || msg.message.extendedTextMessage?.text;
+
+    if (teks?.toLowerCase() === 'ping') {
+      await sock.sendMessage(sender, { text: '🏓 Pong!' });
     }
   });
 }
 
+// Jalankan bot
 startBot();
+
 
 
 

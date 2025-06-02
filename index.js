@@ -1,58 +1,37 @@
-const { default: makeWASocket, useSingleFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useSingleFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@adiwajshing/baileys');
 const { Boom } = require('@hapi/boom');
-const qrcode = require('qrcode-terminal');
+const path = require('path');
 
-// Gunakan file auth untuk menyimpan sesi login
-const { state, saveState } = useSingleFileAuthState('./auth_info.json');
+const { state, saveState } = useSingleFileAuthState(path.join(__dirname, 'auth_info.json'));
 
-// Fungsi utama
 async function startBot() {
+  const { version, isLatest } = await fetchLatestBaileysVersion();
+  console.log(`Using WA version v${version.join('.')}, isLatest: ${isLatest}`);
+
   const sock = makeWASocket({
-    auth: state,
+    version,
     printQRInTerminal: true,
+    auth: state
   });
 
-  // Simpan sesi saat ada perubahan
-  sock.ev.on('creds.update', saveState);
-
-  // Tampilkan log koneksi
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      console.log('\n📷 Scan QR Code dengan cepat!\n');
-      qrcode.generate(qr, { small: true });
-    }
-
-    if (connection === 'close') {
-      const statusCode = Boom.isBoom(lastDisconnect?.error) ? lastDisconnect.error.output.statusCode : null;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      console.log('❌ Koneksi terputus. Coba sambung ulang...', shouldReconnect);
-      if (shouldReconnect) {
+    const { connection, lastDisconnect } = update;
+    if(connection === 'close') {
+      const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('connection closed due to', lastDisconnect.error, ', reconnecting:', shouldReconnect);
+      if(shouldReconnect) {
         startBot();
       }
-    } else if (connection === 'open') {
-      console.log('✅ Bot berhasil terhubung ke WhatsApp!');
+    } else if(connection === 'open') {
+      console.log('connected');
     }
   });
 
-  // Balasan otomatis sederhana
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
-    const msg = messages[0];
-    if (!msg.message) return;
-
-    const sender = msg.key.remoteJid;
-    const teks = msg.message.conversation || msg.message.extendedTextMessage?.text;
-
-    if (teks?.toLowerCase() === 'ping') {
-      await sock.sendMessage(sender, { text: '🏓 Pong!' });
-    }
-  });
+  sock.ev.on('creds.update', saveState);
 }
 
-// Jalankan bot
 startBot();
+
 
 
 
